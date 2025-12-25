@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RBXCTOS Explorer</title>
+    <style>
+        body { background-color: #252526; color: #cccccc; font-family: 'Segoe UI', monospace; margin: 0; padding: 10px; }
+        h3 { border-bottom: 1px solid #3e3e42; padding-bottom: 10px; }
+        
+        /* Explorer Tree Styles */
+        .tree-node { margin-left: 18px; padding: 2px 0; border-left: 1px solid #333; }
+        .label { cursor: pointer; display: flex; align-items: center; }
+        .icon { width: 12px; height: 12px; margin-right: 6px; background-color: #555; border-radius: 50%; display: inline-block; }
+        .folder-icon { background-color: #dcb67a; }
+        .part-icon { background-color: #569cd6; }
+        .name { color: #e0e0e0; font-size: 14px; }
+        .classname { color: #858585; font-size: 11px; margin-left: 8px; font-style: italic; }
+        
+        #status { font-size: 12px; color: #4ec9b0; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+    <h3>📂 Workspace Explorer (rbxctos)</h3>
+    <div id="status">Connecting...</div>
+    <div id="explorer-container"></div>
+
+    <script>
+        // YOUR DATABASE URL
+        const DB_URL = "https://rbxctos-default-rtdb.firebaseio.com/ide_view.json";
+
+        async function fetchData() {
+            const statusDiv = document.getElementById('status');
+            try {
+                // Fetch the JSON data directly
+                const response = await fetch(DB_URL);
+                if (!response.ok) throw new Error("Connection failed");
+                
+                const data = await response.json();
+                
+                if (data) {
+                    statusDiv.innerText = "Last updated: " + new Date().toLocaleTimeString();
+                    const container = document.getElementById('explorer-container');
+                    container.innerHTML = ''; // Clear old list
+                    container.appendChild(buildTree(data));
+                } else {
+                    statusDiv.innerText = "Waiting for data from executor...";
+                }
+            } catch (error) {
+                statusDiv.innerText = "Error: " + error.message;
+            }
+        }
+
+        // Recursive function to generate HTML
+        function buildTree(node) {
+            const div = document.createElement('div');
+            div.className = 'tree-node';
+
+            const label = document.createElement('div');
+            label.className = 'label';
+
+            // Simple icon logic
+            const icon = document.createElement('span');
+            icon.className = 'icon ' + (node.Children ? 'folder-icon' : 'part-icon');
+            
+            const text = document.createElement('span');
+            text.className = 'name';
+            text.innerText = node.Name;
+
+            const type = document.createElement('span');
+            type.className = 'classname';
+            type.innerText = `(${node.ClassName})`;
+
+            label.appendChild(icon);
+            label.appendChild(text);
+            label.appendChild(type);
+            div.appendChild(label);
+
+            // If it has children, process them
+            if (node.Children) {
+                // Lua arrays often turn into Objects in Firebase, this fixes that:
+                const childrenArray = Array.isArray(node.Children) ? node.Children : Object.values(node.Children);
+                
+                childrenArray.forEach(child => {
+                    if (child) div.appendChild(buildTree(child));
+                });
+            }
+
+            return div;
+        }
+
+        // Refresh automatically every 3 seconds
+        setInterval(fetchData, 3000);
+        fetchData(); // Run immediately on load
+    </script>
+</body>
+</html>
